@@ -1,0 +1,173 @@
+{% extends 'basic.html' %}
+{% load static %}
+
+{% block content %}
+
+<h1>EECS E6893 Group 17 Final Project</h1>
+
+<style>
+  p.big {
+    line-height: 1.5
+  }
+</style>
+<p id="introduction" class="big" style="font-size:17px">
+  Welcome to the Stock Relations and Recommendations App.<br>
+  Please enter a company of your interest below.<br>
+  We will use <a href="https://erikbern.com/2015/10/01/nearest-neighbors-and-vector-models-part-2-how-to-search-in-high-dimensional-spaces.html">Approximate Nearest Neighbor Algorithm</a> to find 10 companies most related to the one you entered.<br>
+  Then we will recommend operations on your target stock with <a href="https://en.wikipedia.org/wiki/Vector_autoregression">Vector Autoregression (VAR) model</a>.<br>
+</p>
+
+<form action="getvar" style="font-size:21px; color: #2148DA" name='form_name' method="POST">
+  {% csrf_token %}
+  Please enter the company code: <input id='company' type="text" name="company"><br><br>
+  Is this impulse or response? <select id="choose" name="imorre">
+  <option value="impulse">impulse</option>
+  <option value="response">response</option>
+  </select>
+  <input type="submit" value="GO">
+</form>
+
+
+<p id="demo" style="font-size:21px; color: #EB1431"></p>
+
+<p id='p1' class="big" style="font-size:17px">
+  The table below displays the results. The “similarity” column shows how strongly related the company is to your target company. (5=most similar, 1=least similar).<br>
+  If you select “impulse” [“response”], the “prediction” columns will show the predicted percentage change in the price of each company <br>
+  [the searched company] in the next five days if the price of the searched company [the corresponding company] were to increase by 10% today. <br>
+  (if the actual percentage change today is -x%, then multiply the numbers in the table by -x/10).
+</p>
+
+<p id='p2' class="big" style="font-size:17px">
+  The recommendation column shows “buy” (“sell”) if the price of the corresponding stock [searched stock] will be greater than (less than)<br>
+  the current price in at least 4 out of the next 5 days, assuming the price of the searched stock [corresponding stock] increased today.<br>
+</p>
+
+<table border = "1">
+  <tr>
+    <th>Company Name</th>
+    <th>Similarity</th>
+    <th>Day1 Prediction</th>
+    <th>Day2 Prediction</th>
+    <th>Day3 Prediction</th>
+    <th>Day4 Prediction</th>
+    <th>Day5 Prediction</th>
+    <th>Recommendation</th>
+  </tr>
+  <tr>
+    <th id="name1"></th>
+    <th id="similar1"></th>
+    <th id="price11"></th>
+    <th id="price12"></th>
+    <th id="price13"></th>
+    <th id="price14"></th>
+    <th id="price15"></th>
+    <th id="recommend1"></th>
+  </tr>
+  <tr>
+    <th id="name2"></th>
+    <th id="similar2"></th>
+    <th id="price21"></th>
+    <th id="price22"></th>
+    <th id="price23"></th>
+    <th id="price24"></th>
+    <th id="price25"></th>
+    <th id="recommend2"></th>
+  </tr>
+  <tr>
+    <th id="name3"></th>
+    <th id="similar3"></th>
+    <th id="price31"></th>
+    <th id="price32"></th>
+    <th id="price33"></th>
+    <th id="price34"></th>
+    <th id="price35"></th>
+    <th id="recommend3"></th>
+  </tr>
+  <tr>
+    <th id="name4"></th>
+    <th id="similar4"></th>
+    <th id="price41"></th>
+    <th id="price42"></th>
+    <th id="price43"></th>
+    <th id="price44"></th>
+    <th id="price45"></th>
+    <th id="recommend4"></th>
+  </tr>
+  <tr>
+    <th id="name5"></th>
+    <th id="similar5"></th>
+    <th id="price51"></th>
+    <th id="price52"></th>
+    <th id="price53"></th>
+    <th id="price54"></th>
+    <th id="price55"></th>
+    <th id="recommend5"></th>
+  </tr>
+  <tr>
+    <th id="name6"></th>
+    <th id="similar6"></th>
+    <th id="price61"></th>
+    <th id="price62"></th>
+    <th id="price63"></th>
+    <th id="price64"></th>
+    <th id="price65"></th>
+    <th id="recommend6"></th>
+  </tr>
+  <tr>
+    <th id="name7"></th>
+    <th id="similar7"></th>
+    <th id="price71"></th>
+    <th id="price72"></th>
+    <th id="price73"></th>
+    <th id="price74"></th>
+    <th id="price75"></th>
+    <th id="recommend7"></th>
+  </tr>
+  <tr>
+    <th id="name8"></th>
+    <th id="similar8"></th>
+    <th id="price81"></th>
+    <th id="price82"></th>
+    <th id="price83"></th>
+    <th id="price84"></th>
+    <th id="price85"></th>
+    <th id="recommend8"></th>
+  </tr>
+  <tr>
+    <th id="name9"></th>
+    <th id="similar9"></th>
+    <th id="price91"></th>
+    <th id="price92"></th>
+    <th id="price93"></th>
+    <th id="price94"></th>
+    <th id="price95"></th>
+    <th id="recommend9"></th>
+  </tr>
+  <tr>
+    <th id="name10"></th>
+    <th id="similar10"></th>
+    <th id="price101"></th>
+    <th id="price102"></th>
+    <th id="price103"></th>
+    <th id="price104"></th>
+    <th id="price105"></th>
+    <th id="recommend10"></th>
+  </tr>
+
+</table>
+
+<!-- Load d3.js -->
+<script src="https://d3js.org/d3.v4.js"></script>
+
+<!-- Create a div where the graph will take place -->
+<div id="my_dataviz"></div>
+
+<!-- Color Scale -->
+<script src="https://d3js.org/d3-scale-chromatic.v1.min.js"></script>
+
+<script src="{% static "js/front.js" %}"></script>
+<script>
+  var Data= {{ result | safe}}
+  front(Data);
+</script>
+{% endblock %}
